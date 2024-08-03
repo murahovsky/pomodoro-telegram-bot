@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--tg-theme-bg-color, #f0f0f0);
+            color: var(--tg-theme-text-color, #333);
+        }
+        .container {
+            text-align: center;
+        }
+        #timer {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        button {
+            font-size: 1.2rem;
+            padding: 10px 20px;
+            margin: 0 10px;
+            cursor: pointer;
+            background-color: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, white);
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="timer">25:00</div>
+        <div>
+            <button id="startStop">Start</button>
+            <button id="reset">Reset</button>
+        </div>
+    </div>
+
+    <script>
+        let tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+        }
+
+        let timerElement = document.getElementById('timer');
+        let startStopButton = document.getElementById('startStop');
+        let resetButton = document.getElementById('reset');
+        let timeLeft = 25 * 60; // 25 minutes in seconds
+        let timerInterval;
+        let isRunning = false;
+
+        function updateTimerDisplay() {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            isRunning = true;
+            startStopButton.textContent = 'Stop';
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateTimerDisplay();
+                } else {
+                    clearInterval(timerInterval);
+                    isRunning = false;
+                    startStopButton.textContent = 'Start';
+                    playAlarm();
+                    sendNotification();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            isRunning = false;
+            startStopButton.textContent = 'Start';
+            clearInterval(timerInterval);
+        }
+
+        function resetTimer() {
+            stopTimer();
+            timeLeft = 25 * 60;
+            updateTimerDisplay();
+        }
+
+        function playAlarm() {
+            try {
+                let context = new (window.AudioContext || window.webkitAudioContext)();
+                let oscillator = context.createOscillator();
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(440, context.currentTime); // 440 Hz
+                oscillator.connect(context.destination);
+                oscillator.start();
+                oscillator.stop(context.currentTime + 1); // Beep for 1 second
+            } catch (error) {
+                console.error("Error playing alarm:", error);
+            }
+        }
+
+        function sendNotification() {
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.query_id) {
+                tg.sendData("Timer completed!");
+            }
+        }
+
+        startStopButton.addEventListener('click', () => {
+            if (isRunning) {
+                stopTimer();
+            } else {
+                if (timeLeft === 0) {
+                    resetTimer();
+                }
+                startTimer();
+            }
+        });
+
+        resetButton.addEventListener('click', resetTimer);
+
+        // Initialize
+        updateTimerDisplay();
+    </script>
+</body>
+</html>
